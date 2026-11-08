@@ -59,8 +59,7 @@ the `make` targets from the root.
 
 3. Set up the virtual environment (section 1), then create a branch: `git switch -c solution`.
 4. Search for `TODO` to find everything you have to implement: `grep -rn "TODO" . --exclude-dir=.venv --exclude-dir=.git --exclude=README.md`.
-5. Commit small steps. The GitHub Actions workflow in `.github/workflows/ci.yml` runs the same checks as `make check`
-   on every push to your fork, so you can see your progress there too.
+5. Commit small steps and run `make check` before every push, so you always know which criteria are done.
 6. Keep the acceptance tests in `tests/acceptance/` unchanged: they are the definition of "done" for each
    acceptance criterion. Write your own tests next to them.
 
@@ -85,7 +84,7 @@ Split an e-commerce backend into two services: an Auth Microservice that owns id
 
 | Path | State | Purpose |
 |---|---|---|
-| `Makefile`, `.python-version`, `.github/workflows/ci.yml`, `pyproject.toml` | provided | tooling for the three projects and CI |
+| `Makefile`, `.python-version`, `pyproject.toml` | provided | tooling for the three projects |
 | `services/auth/app/{config,models,schemas,deps,database,logging_config,health,main}.py` | provided | settings, `users` table, schemas, dependencies, structlog setup, `/health` and `/ready` |
 | `services/auth/app/security.py` | **TODO (AC 1, AC 2)** | `hash_password`, `verify_password` (Argon2id), `create_access_token` (JWT) |
 | `services/auth/app/otp.py` | **TODO (AC 1)** | `issue_otp`, `verify_otp` on Redis |
@@ -274,7 +273,7 @@ Topics from the Python Kick-Start roadmap for this section:
 
 ## Definition of done
 
-- [ ] `make check` is green locally and in the CI of your fork
+- [ ] `make check` is green
 - [ ] `docker compose up --build` starts both services, their databases and Redis
 - [ ] The cluster runs two replicas of each service behind one Ingress, and you demonstrated the resilience steps
 - [ ] Each service has its committed Alembic migration and `uv.lock`; no secrets, `.env` files or `.venv` are committed
