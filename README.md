@@ -5,8 +5,8 @@
 
 # Practical Task 3: Multi-Tenant E-Commerce Auth & Order Microservices on Kubernetes
 
-> Part of **Python Kick-Start**: Section 3: “Get Yourself Familiar” — Auth, Guards & Caching (3 Weeks). This repository is a **forkable template**:
-> fork it, clone your fork, and implement everything marked `TODO` until all acceptance tests pass.
+> Part of **Python Kick-Start**: Section 3: “Get Yourself Familiar” — Auth, Guards & Caching (3 Weeks). This repository is a **forkable starting point**:
+> fork it, clone your fork, and build the task.
 
 ## 1. Set up your virtual environment first
 
@@ -20,9 +20,9 @@ You need [git](https://git-scm.com/) and [uv](https://docs.astral.sh/uv/getting-
 ```bash
 # install uv once: https://docs.astral.sh/uv/getting-started/installation/
 uv python install 3.14
-make setup   # creates a virtual environment in the repo root, services/auth and services/core
+make setup   # creates a virtual environment in services/auth and services/core
 
-# then run every acceptance check (they fail until you finish the task)
+# then lint, type-check and test your work
 make check
 ```
 
@@ -42,10 +42,9 @@ Common problems:
 - Wrong Python version: run `uv python list` and `uv python install 3.14`, then delete `.venv` and run `uv sync` again.
 - `make: command not found` (Windows): run the commands from the `Makefile` by hand, or use WSL / Git Bash.
 
-This repository has **three independent uv projects**, so `make setup` creates three virtual environments:
-the repository root (static checks for Dockerfiles, Compose and Kubernetes manifests), `services/auth` and
-`services/core`. Run a service's own commands from inside its folder (`cd services/auth && uv run pytest`) or use
-the `make` targets from the root.
+This repository has **two independent uv projects**, `services/auth` and `services/core`, so `make setup` creates two
+virtual environments. Run a service's own commands from inside its folder (`cd services/auth && uv run pytest`) or use
+the `make` targets from the root, which run in both services.
 
 ## 2. Fork, clone and work on your fork
 
@@ -58,140 +57,54 @@ the `make` targets from the root.
    ```
 
 3. Set up the virtual environment (section 1), then create a branch: `git switch -c solution`.
-4. Search for `TODO` to find everything you have to implement: `grep -rn "TODO" . --exclude-dir=.venv --exclude-dir=.git --exclude=README.md`.
-5. Commit small steps and run `make check` before every push, so you always know which criteria are done.
-6. Keep the acceptance tests in `tests/acceptance/` unchanged: they are the definition of "done" for each
-   acceptance criterion. Write your own tests next to them.
+4. Build the task step by step and commit small steps. Run `make check` before every push so you always know where you stand.
 
 ## 3. Task description
 
-Split an e-commerce backend into two services: an Auth Microservice that owns identities, passwords and one-time codes, and a Core Service that owns products and orders. The Core Service never sees a password; it only trusts signed JWTs and enforces role-based access with reusable dependency guards. Guards and OTP flows are covered by tests, auth events are logged without leaking secrets, and the whole system runs first under Docker Compose and then on a local Kubernetes cluster behind a single Ingress. You work in a fork of the template repository: both services come with configuration, models, Alembic setup, test fixtures and acceptance tests, and the security code, endpoints and `ARCHITECTURE.md` are marked `TODO`. All infrastructure is yours to build from scratch: the Dockerfiles, the whole Docker Compose stack (both services, their databases and Redis) and every Kubernetes manifest. Each service has its own virtual environment, so set all of them up first (`make setup`).
+Split an e-commerce backend into two services: an Auth Microservice that owns identities, passwords and one-time codes, and a Core Service that owns products and orders. The Core Service never sees a password; it only trusts signed JWTs and enforces role-based access with reusable dependency guards. Guards and OTP flows are covered by tests, auth events are logged without leaking secrets, and the whole system runs first under Docker Compose and then on a local Kubernetes cluster behind a single Ingress. You start from a fork of the template repository that contains only the tooling (see below). You create both services (application code, models, migrations and tests), their Dockerfiles, the whole Docker Compose stack (both services, their databases and Redis), `ARCHITECTURE.md` and every Kubernetes manifest yourself. Each service has its own virtual environment, so set both up first (`make setup`).
 
-## 4. Acceptance criteria
+## 4. What already exists in this repository
 
-- [ ] **AC 1**: Build Auth Microservice handling registration, password hashing, and Redis OTP verification.
+- `.python-version`: pins Python 3.14 for uv
+- `services/auth/` and `services/core/`: each contains only a `.python-version` (3.14), a `pyproject.toml` and a `uv.lock`, with the dependencies (FastAPI, Uvicorn, SQLAlchemy 2.0 async, asyncpg, Alembic, pydantic-settings, structlog; Auth also PyJWT, Argon2, Redis, python-multipart and email-validator; Core also PyJWT; dev: pytest, pytest-asyncio, httpx, Ruff, Mypy, plus fakeredis in Auth) and the Ruff, Mypy (strict) and pytest configuration
+- `Makefile`: `make setup`, `make lint`, `make typecheck`, `make test`, `make check` and `make fmt`, each running in both services
+- `.gitignore` for Python projects (`.venv`, caches, `.env`)
+
+Everything else is yours to create: the code of both services, their tests and migrations, the Dockerfiles,
+`compose.yaml`, `ARCHITECTURE.md` and all Kubernetes manifests. Until you have written tests, `make test` fails because
+pytest finds none: that is expected.
+
+## 5. What you need to do (acceptance criteria)
+
+- [ ] **AC 1**: Create the Auth microservice (`services/auth`): registration, Argon2 password hashing, and Redis OTP verification.
 - [ ] **AC 2**: Issue signed JWT bearer tokens upon authentication.
-- [ ] **AC 3**: Implement custom security dependency guard in Core Service to decode and validate JWTs.
+- [ ] **AC 3**: Create the Core service (`services/core`) with a custom security dependency guard that decodes and validates JWTs.
 - [ ] **AC 4**: Enforce RBAC: `user` (order placement), `moderator`/`admin` (price override & stock edits).
 - [ ] **AC 5**: Cover the guard matrix with `pytest` (401 missing/invalid/expired token, 403 wrong role, 200 allowed role) and OTP flows with `fakeredis` (success, wrong code, expiry, single use).
 - [ ] **AC 6**: Emit structured logs for register, login success/failure and OTP issue/verify, with no passwords, tokens or codes in the output.
-- [ ] **AC 7**: Containerize Auth and Core with multi-stage, non-root Dockerfiles; `docker compose up --build` starts both services, their PostgreSQL databases and Redis locally.
+- [ ] **AC 7**: Containerize Auth and Core with multi-stage, non-root Dockerfiles and write a `compose.yaml` so that `docker compose up --build` starts both services, one PostgreSQL database per service and Redis locally.
 - [ ] **AC 8**: Core validates JWTs locally and never calls Auth per request; document service boundaries (owned tables, JWT claims, error format) in `ARCHITECTURE.md`.
-- [ ] **AC 9**: Deploy to a local Kubernetes cluster (`k3d`): one Deployment (2 replicas) and ClusterIP Service per service, ConfigMap + Secret for configuration, readiness (`/ready`) and liveness (`/health`) probes, and a single Ingress routing `/auth` to Auth and `/api` to Core.
+- [ ] **AC 9**: Write the Kubernetes manifests (`deploy/k8s`) and deploy to a local cluster (`k3d`): one Deployment (2 replicas) and ClusterIP Service per service, ConfigMap + Secret for configuration, readiness (`/ready`) and liveness (`/health`) probes, and a single Ingress routing `/auth` to Auth and `/api` to Core.
 - [ ] **AC 10**: Run schema migrations as a Kubernetes Job, then demonstrate resilience: delete a Core pod and show traffic keeps flowing, and scale Core to 3 replicas.
-
-## 5. What the template gives you, and what is yours
-
-| Path | State | Purpose |
-|---|---|---|
-| `Makefile`, `.python-version`, `pyproject.toml` | provided | tooling for the three projects |
-| `services/auth/app/{config,models,schemas,deps,database,logging_config,health,main}.py` | provided | settings, `users` table, schemas, dependencies, structlog setup, `/health` and `/ready` |
-| `services/auth/app/security.py` | **TODO (AC 1, AC 2)** | `hash_password`, `verify_password` (Argon2id), `create_access_token` (JWT) |
-| `services/auth/app/otp.py` | **TODO (AC 1)** | `issue_otp`, `verify_otp` on Redis |
-| `services/auth/app/routers/auth.py` | **TODO (AC 1, AC 2, AC 6)** | `/auth/register`, `/auth/verify-otp`, `/auth/login` and the log events |
-| `services/auth/tests/test_otp.py` | **TODO (AC 5)** | your OTP tests with fakeredis |
-| `services/core/app/{config,models,schemas,deps,database,logging_config,health,main}.py` | provided | settings, `items` and `orders` tables, schemas, dependencies |
-| `services/core/app/security.py` | **TODO (AC 3, AC 4)** | `get_current_user` (local JWT validation) and `require_roles` |
-| `services/core/app/routers/{items,orders}.py` | **TODO (AC 4)** | price override, stock edit, order placement (the listing endpoint is a worked example) |
-| `services/core/tests/test_guards.py` | **TODO (AC 5)** | your guard-matrix tests |
-| `services/*/alembic/` | provided, **TODO (AC 10)** | async Alembic environment; you generate the first migration |
-| `services/*/Dockerfile` | **TODO (AC 7)** | multi-stage, non-root image |
-| `compose.yaml` | **yours to create (AC 7)** | the whole local stack: `auth`, `core`, their two databases and Redis |
-| `ARCHITECTURE.md` | **TODO (AC 8)** | boundaries, JWT claims, error format, data ownership, URL prefixes |
-| `deploy/k8s/base/` and `deploy/k8s/overlays/local/` | **yours to create (AC 9, AC 10)** | every Kubernetes manifest and the two Kustomize files; nothing is provided |
-| `**/tests/acceptance/` | provided, do not edit | one file per acceptance criterion |
-
-### Service contracts
-
-**Auth** (mounted under `/auth`):
-
-| Endpoint | Success | Errors |
-|---|---|---|
-| `POST /auth/register` `{email, password}` | `201` user without password or hash; role `user`, not verified; an OTP is stored in Redis | `409` email exists, `422` invalid body |
-| `POST /auth/verify-otp` `{email, code}` | `200` user, now verified; the code is deleted (single use) | `400` or `401` wrong or expired code |
-| `POST /auth/login` (OAuth2 password form, `username` = email) | `200` `{access_token, token_type: "bearer"}`; JWT claims `sub` (string), `role`, `exp` | `401` bad credentials, `403` not verified |
-
-OTP: Redis key `otp:{email}`, a 6-digit string, TTL `OTP_TTL_SECONDS`, never returned by the API.
-Log events (JSON, structlog): `user_registered`, `otp_issued`, `otp_verified`, `otp_failed`, `login_succeeded`, `login_failed`.
-Never log a password, a hash, a code or a token.
-
-**Core** (mounted under `/api`, `/health` and `/ready` at the root):
-
-| Endpoint | Allowed roles | Result |
-|---|---|---|
-| `GET /api/items` | any authenticated user | `200` list |
-| `PATCH /api/items/{item_id}/price` `{price}` | `moderator`, `admin` | `200` item, `404` unknown, `422` invalid |
-| `PATCH /api/items/{item_id}/stock` `{stock}` | `moderator`, `admin` | `200` item, `404` unknown, `422` invalid |
-| `POST /api/orders` `{item_id, quantity}` | `user` only | `201` order and stock decremented, `404` unknown item, `409` not enough stock |
-
-Missing, malformed, tampered or expired token, or a token without `sub`, `role` or `exp`: `401` with `WWW-Authenticate: Bearer`.
-Valid token with the wrong role: `403`. Core validates tokens with the shared key and never calls Auth.
-
-### What the infrastructure tests look for
-
-Building the infrastructure is your job: the template contains no Compose file, no Kubernetes manifests and no
-helper scripts. The static tests only fix the names below so they can find your work.
-
-| Area | Expected |
-|---|---|
-| `compose.yaml` (repo root) | services `auth`, `core`, `auth-db`, `core-db`, `redis`; `auth` and `core` built from `./services/auth` and `./services/core`; databases have a healthcheck and the services wait with `condition: service_healthy`; `auth` needs `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `core` needs `DATABASE_URL`, `JWT_SECRET` (same secret as Auth); each service points at its own database host |
-| `services/{auth,core}/Dockerfile` | at least two stages, pinned base tag (never `latest`), `uv sync --frozen --no-dev`, copy from the builder stage, non-root `USER`, no secrets in `ENV`/`ARG`, start `uvicorn app.main:app` |
-| `deploy/k8s/base/kustomization.yaml` | lists every resource file; `deploy/k8s/overlays/local/kustomization.yaml` lists `../../base` |
-| Namespace | `kickstart`, and every other resource sets `namespace: kickstart` |
-| Per service (`auth`, `core`) | Deployment named after the service with 2 replicas; image `kickstart/<service>:<tag>` (pinned); `envFrom` a ConfigMap `<service>-config` and a Secret `<service>-secrets`; readiness probe `/ready`, liveness probe `/health`; CPU and memory requests; a ClusterIP Service on port 80 selecting the pods |
-| Ingress | exactly one, `ingressClassName: traefik`, `/auth` routes to `auth` and `/api` to `core` |
-| Secrets | `deploy/k8s/base/secret.example.yaml` documents `auth-secrets` and `core-secrets` (keys `DATABASE_URL`, `JWT_SECRET`) with placeholder values; it is not listed in the kustomization and real values are never committed |
-| Migrations | a Job per service running `alembic upgrade head` with the service image and its Secret, `restartPolicy` `OnFailure` or `Never` |
-| `ARCHITECTURE.md` | sections `Service boundaries`, `JWT claims`, `Error format`, `Data ownership`, `URL prefixes` |
-
-### How the acceptance tests map to the criteria
-
-| Criterion | Checked by |
-|---|---|
-| AC 1 | `services/auth/tests/acceptance/test_ac1_register_hash_otp.py` |
-| AC 2 | `services/auth/tests/acceptance/test_ac2_jwt.py` |
-| AC 3 | `services/core/tests/acceptance/test_ac3_jwt_guard.py` |
-| AC 4 | `services/core/tests/acceptance/test_ac4_rbac.py` |
-| AC 5 | `services/auth/tests/acceptance/test_ac5_learner_tests.py` and `services/core/tests/acceptance/test_ac5_learner_tests.py` check your own tests: 4+ OTP tests (success, wrong code, expiry, single use) and 4+ guard tests mentioning 401, 403 and 200 |
-| AC 6 | `services/auth/tests/acceptance/test_ac6_logging.py` |
-| AC 7 | `tests/acceptance/test_ac7_containers.py` (Dockerfiles and `compose.yaml`, static checks) |
-| AC 8 | `services/core/tests/acceptance/test_ac8_local_validation.py` (no HTTP client in Core) and `tests/acceptance/test_ac8_architecture.py` |
-| AC 9 | `tests/acceptance/test_ac9_kubernetes.py` (manifests, parsed with PyYAML) |
-| AC 10 | `tests/acceptance/test_ac10_migration_jobs.py` and `services/*/tests/acceptance/test_ac10_migrations.py` |
-
-The acceptance tests do not need Docker, a cluster or PostgreSQL: they use in-memory SQLite and fakeredis, and parse the
-YAML files. Things only you can verify by hand (the cluster really running, the resilience demo) are described in the steps.
-
-### Makefile cheat sheet
-
-| Command | What it does |
-|---|---|
-| `make setup` | `uv sync` in the root, `services/auth` and `services/core` |
-| `make lint` / `make typecheck` / `make test` | Ruff, strict Mypy and pytest in all three projects |
-| `make check` | all of the above: the definition of "green" |
-| `make fmt` | auto-fix Ruff findings and format |
 
 ## 6. Step-by-step setup
 
-1. Fork the template and set up every virtual environment with `make setup`. The monorepo layout is ready: `services/auth`, `services/core`, `deploy/k8s/base`, `deploy/k8s/overlays/local`.
+1. Fork the template and set up both virtual environments with `make setup`. The repository only contains the tooling: you create `services/auth/app`, `services/core/app`, `compose.yaml`, `ARCHITECTURE.md` and `deploy/k8s/`.
 2. Write the contracts first in `ARCHITECTURE.md`: JWT claims (`sub`, `role`, `exp`, `iss`, `aud`), the error response shape, which service owns which tables, and the public URL prefixes (`/auth`, `/api`).
 3. Build and test Auth in isolation: register (Argon2 hash), login and OTP via Redis, JWT issue, `/health` and `/ready`.
 4. Build and test Core in isolation: items and orders, the `require_roles` guard, and the guard-matrix tests. Core only needs the JWT verification key.
 5. Write a multi-stage, non-root Dockerfile for each service and a `compose.yaml` with `auth`, `core`, two databases and Redis. Run `docker compose up --build` and click through both Swagger UIs.
 6. Create the cluster: `k3d cluster create kickstart -p "8080:80@loadbalancer"`. Build versioned images and import them: `k3d image import kickstart/auth:0.1.0 kickstart/core:0.1.0 -c kickstart`.
 7. Write manifests: Namespace, ConfigMap (plain settings), Secret (JWT key, DB URLs; generate them locally, do not commit them), Deployment with probes and resources, Service, and one Ingress.
-8. Run migrations as a `Job` (`alembic upgrade head`) before the Deployments roll out. Apply everything with `kubectl apply -k deploy/k8s/overlays/local`.
+8. Run migrations as a `Job` (`alembic upgrade head`) before the Deployments roll out. Apply everything (for example with Kustomize: `kubectl apply -k deploy/k8s/overlays/local`).
 9. Verify: `kubectl get pods -n kickstart`, `kubectl rollout status`, then call `http://localhost:8080/auth/...` and `http://localhost:8080/api/...`. Delete a Core pod, scale Core to 3, and watch traffic keep working.
 10. Run the guard-matrix tests (or a smoke script) against the cluster URL to prove 401, 403 and 200 behave identically to local tests.
 
-### Infrastructure hints
-
-You choose how to run PostgreSQL and Redis. Compose is the natural place for local development. For the cluster
-you can reach those containers from the pods through `host.k3d.internal` (publish their ports on your machine), or
-run the databases inside the cluster with a Helm chart or an operator. Create the Secrets with `kubectl create secret`
-(from environment variables or files) instead of writing real values into YAML, and run the migration Jobs after the
-Secrets exist and before the Deployments become ready. `k3d` bundles the Traefik ingress controller; do not use
-Ingress NGINX, which the Kubernetes project retired in March 2026.
+Hints for the infrastructure: you choose how to run PostgreSQL and Redis. Compose is the natural place for local
+development. For the cluster you can reach those containers from the pods through `host.k3d.internal` (publish their
+ports on your machine), or run the databases inside the cluster with a Helm chart or an operator. Create Secrets with
+`kubectl create secret` instead of writing real values into YAML. `k3d` bundles the Traefik ingress controller; do not
+use Ingress NGINX, which the Kubernetes project retired in March 2026.
 
 ## 7. Tech stack requirements
 
@@ -266,8 +179,9 @@ Topics from the Python Kick-Start roadmap for this section:
 
 ## Definition of done
 
+- [ ] every acceptance criterion above is met
 - [ ] `make check` is green
-- [ ] `docker compose up --build` starts both services, their databases and Redis (your `compose.yaml`)
-- [ ] The cluster runs two replicas of each service behind one Ingress, and you demonstrated the resilience steps
-- [ ] Each service has its committed Alembic migration and `uv.lock`; no secrets, `.env` files or `.venv` are committed
+- [ ] `docker compose up --build` starts both services, their databases and Redis
+- [ ] the cluster runs two replicas of each service behind one Ingress, and you demonstrated the resilience steps
+- [ ] each service has its committed Alembic migration and `uv.lock`; no secrets, `.env` files or `.venv` are committed
 - [ ] `ARCHITECTURE.md` is complete and matches the code
