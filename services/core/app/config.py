@@ -9,7 +9,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    database_url: str = "postgresql+asyncpg://core:core@localhost:5434/core"
+    database_url: str = "postgresql+asyncpg://core:core@localhost:5432/core"
     # Required, no default: the key (or, with asymmetric keys, the PUBLIC key) used to verify tokens.
     jwt_secret: SecretStr
     jwt_algorithm: str = "HS256"

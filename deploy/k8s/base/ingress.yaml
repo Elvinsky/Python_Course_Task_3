@@ -1,5 +1,0 @@
-# TODO (AC 9): ONE Ingress for the whole system:
-#   - ingressClassName: traefik (k3d ships Traefik; Ingress NGINX is retired, do not use it)
-#   - path /auth (Prefix) -> Service `auth`, port 80
-#   - path /api  (Prefix) -> Service `core`, port 80
-# Traefik does not strip the prefixes: the services already serve their routes under /auth and /api.

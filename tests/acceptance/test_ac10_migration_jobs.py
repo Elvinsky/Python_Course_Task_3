@@ -40,7 +40,9 @@ def test_job_uses_the_service_image_and_configuration(service: str) -> None:
 
 
 def test_jobs_are_part_of_the_base_kustomization() -> None:
-    assert "migrate-job.yaml" in kustomization(K8S_BASE)["resources"]
+    assert of_kind("Job"), (
+        "define the migration Jobs in a file listed under `resources` of the base kustomization"
+    )
 
 
 @pytest.mark.parametrize("directory", [K8S_BASE, K8S_OVERLAY])

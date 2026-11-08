@@ -65,7 +65,7 @@ the `make` targets from the root.
 
 ## 3. Task description
 
-Split an e-commerce backend into two services: an Auth Microservice that owns identities, passwords and one-time codes, and a Core Service that owns products and orders. The Core Service never sees a password; it only trusts signed JWTs and enforces role-based access with reusable dependency guards. Guards and OTP flows are covered by tests, auth events are logged without leaking secrets, and the whole system runs first under Docker Compose and then on a local Kubernetes cluster behind a single Ingress. You work in a fork of the template repository: both services come with configuration, models, Alembic setup, test fixtures and acceptance tests, and the security code, endpoints, Dockerfiles, Compose services, Kubernetes manifests and `ARCHITECTURE.md` are marked `TODO`. Each service has its own virtual environment, so set all of them up first (`make setup`).
+Split an e-commerce backend into two services: an Auth Microservice that owns identities, passwords and one-time codes, and a Core Service that owns products and orders. The Core Service never sees a password; it only trusts signed JWTs and enforces role-based access with reusable dependency guards. Guards and OTP flows are covered by tests, auth events are logged without leaking secrets, and the whole system runs first under Docker Compose and then on a local Kubernetes cluster behind a single Ingress. You work in a fork of the template repository: both services come with configuration, models, Alembic setup, test fixtures and acceptance tests, and the security code, endpoints and `ARCHITECTURE.md` are marked `TODO`. All infrastructure is yours to build from scratch: the Dockerfiles, the whole Docker Compose stack (both services, their databases and Redis) and every Kubernetes manifest. Each service has its own virtual environment, so set all of them up first (`make setup`).
 
 ## 4. Acceptance criteria
 
@@ -96,11 +96,9 @@ Split an e-commerce backend into two services: an Auth Microservice that owns id
 | `services/core/tests/test_guards.py` | **TODO (AC 5)** | your guard-matrix tests |
 | `services/*/alembic/` | provided, **TODO (AC 10)** | async Alembic environment; you generate the first migration |
 | `services/*/Dockerfile` | **TODO (AC 7)** | multi-stage, non-root image |
-| `compose.yaml` | **TODO (AC 7)** | databases and Redis are provided; add `auth` and `core` |
+| `compose.yaml` | **yours to create (AC 7)** | the whole local stack: `auth`, `core`, their two databases and Redis |
 | `ARCHITECTURE.md` | **TODO (AC 8)** | boundaries, JWT claims, error format, data ownership, URL prefixes |
-| `deploy/k8s/base/{namespace,core}.yaml`, `deploy/k8s/overlays/local/` | provided | the Namespace and a worked example (Deployment + Service for Core) |
-| `deploy/k8s/base/{auth,ingress,configmap,secret.example,migrate-job}.yaml` | **TODO (AC 9, AC 10)** | the rest of the manifests, already listed in `kustomization.yaml` |
-| `scripts/` | provided | `k3d-up.sh` (cluster and images) and `k8s-secrets.sh` (Secrets, never committed) |
+| `deploy/k8s/base/` and `deploy/k8s/overlays/local/` | **yours to create (AC 9, AC 10)** | every Kubernetes manifest and the two Kustomize files; nothing is provided |
 | `**/tests/acceptance/` | provided, do not edit | one file per acceptance criterion |
 
 ### Service contracts
@@ -129,6 +127,23 @@ Never log a password, a hash, a code or a token.
 Missing, malformed, tampered or expired token, or a token without `sub`, `role` or `exp`: `401` with `WWW-Authenticate: Bearer`.
 Valid token with the wrong role: `403`. Core validates tokens with the shared key and never calls Auth.
 
+### What the infrastructure tests look for
+
+Building the infrastructure is your job: the template contains no Compose file, no Kubernetes manifests and no
+helper scripts. The static tests only fix the names below so they can find your work.
+
+| Area | Expected |
+|---|---|
+| `compose.yaml` (repo root) | services `auth`, `core`, `auth-db`, `core-db`, `redis`; `auth` and `core` built from `./services/auth` and `./services/core`; databases have a healthcheck and the services wait with `condition: service_healthy`; `auth` needs `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `core` needs `DATABASE_URL`, `JWT_SECRET` (same secret as Auth); each service points at its own database host |
+| `services/{auth,core}/Dockerfile` | at least two stages, pinned base tag (never `latest`), `uv sync --frozen --no-dev`, copy from the builder stage, non-root `USER`, no secrets in `ENV`/`ARG`, start `uvicorn app.main:app` |
+| `deploy/k8s/base/kustomization.yaml` | lists every resource file; `deploy/k8s/overlays/local/kustomization.yaml` lists `../../base` |
+| Namespace | `kickstart`, and every other resource sets `namespace: kickstart` |
+| Per service (`auth`, `core`) | Deployment named after the service with 2 replicas; image `kickstart/<service>:<tag>` (pinned); `envFrom` a ConfigMap `<service>-config` and a Secret `<service>-secrets`; readiness probe `/ready`, liveness probe `/health`; CPU and memory requests; a ClusterIP Service on port 80 selecting the pods |
+| Ingress | exactly one, `ingressClassName: traefik`, `/auth` routes to `auth` and `/api` to `core` |
+| Secrets | `deploy/k8s/base/secret.example.yaml` documents `auth-secrets` and `core-secrets` (keys `DATABASE_URL`, `JWT_SECRET`) with placeholder values; it is not listed in the kustomization and real values are never committed |
+| Migrations | a Job per service running `alembic upgrade head` with the service image and its Secret, `restartPolicy` `OnFailure` or `Never` |
+| `ARCHITECTURE.md` | sections `Service boundaries`, `JWT claims`, `Error format`, `Data ownership`, `URL prefixes` |
+
 ### How the acceptance tests map to the criteria
 
 | Criterion | Checked by |
@@ -155,9 +170,6 @@ YAML files. Things only you can verify by hand (the cluster really running, the 
 | `make lint` / `make typecheck` / `make test` | Ruff, strict Mypy and pytest in all three projects |
 | `make check` | all of the above: the definition of "green" |
 | `make fmt` | auto-fix Ruff findings and format |
-| `make compose-up` / `make compose-down` | the local stack (AC 7) |
-| `make k3d-up` / `make k3d-down` | create or delete the local cluster and import the images (AC 9) |
-| `make k8s-secrets` / `make k8s-apply` | create the Secrets (never committed) and apply the manifests |
 
 ## 6. Step-by-step setup
 
@@ -172,33 +184,14 @@ YAML files. Things only you can verify by hand (the cluster really running, the 
 9. Verify: `kubectl get pods -n kickstart`, `kubectl rollout status`, then call `http://localhost:8080/auth/...` and `http://localhost:8080/api/...`. Delete a Core pod, scale Core to 3, and watch traffic keep working.
 10. Run the guard-matrix tests (or a smoke script) against the cluster URL to prove 401, 403 and 200 behave identically to local tests.
 
-### The cluster commands
+### Infrastructure hints
 
-```bash
-# k3d bundles the Traefik ingress controller; port 8080 on your machine -> cluster port 80
-k3d cluster create kickstart -p "8080:80@loadbalancer"
-
-docker build -t kickstart/auth:0.1.0 services/auth
-docker build -t kickstart/core:0.1.0 services/core
-k3d image import kickstart/auth:0.1.0 kickstart/core:0.1.0 -c kickstart
-
-make k8s-secrets          # creates auth-secrets and core-secrets (values are never committed)
-make k8s-apply            # kubectl apply -k deploy/k8s/overlays/local
-kubectl get pods -n kickstart -w
-
-# resilience demo
-kubectl delete pod -n kickstart -l app=core --wait=false
-kubectl scale deployment/core -n kickstart --replicas=3
-
-# clean up
-k3d cluster delete kickstart
-```
-
-`make k3d-up` runs the cluster and image steps for you. PostgreSQL and Redis run in `docker compose`
-(`docker compose up -d auth-db core-db redis`); pods reach them at `host.k3d.internal` (ports 5433, 5434 and 6379),
-which is what `scripts/k8s-secrets.sh` uses. Run the migration Jobs after the Secrets exist and before the Deployments
-become ready. Helm charts or an operator are the alternative if you want the databases inside the cluster.
-Do not use Ingress NGINX: the Kubernetes project retired it in March 2026 (this template uses Traefik).
+You choose how to run PostgreSQL and Redis. Compose is the natural place for local development. For the cluster
+you can reach those containers from the pods through `host.k3d.internal` (publish their ports on your machine), or
+run the databases inside the cluster with a Helm chart or an operator. Create the Secrets with `kubectl create secret`
+(from environment variables or files) instead of writing real values into YAML, and run the migration Jobs after the
+Secrets exist and before the Deployments become ready. `k3d` bundles the Traefik ingress controller; do not use
+Ingress NGINX, which the Kubernetes project retired in March 2026.
 
 ## 7. Tech stack requirements
 
@@ -274,7 +267,7 @@ Topics from the Python Kick-Start roadmap for this section:
 ## Definition of done
 
 - [ ] `make check` is green
-- [ ] `docker compose up --build` starts both services, their databases and Redis
+- [ ] `docker compose up --build` starts both services, their databases and Redis (your `compose.yaml`)
 - [ ] The cluster runs two replicas of each service behind one Ingress, and you demonstrated the resilience steps
 - [ ] Each service has its committed Alembic migration and `uv.lock`; no secrets, `.env` files or `.venv` are committed
 - [ ] `ARCHITECTURE.md` is complete and matches the code

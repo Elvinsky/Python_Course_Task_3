@@ -109,11 +109,11 @@ def test_secrets_are_documented_but_never_committed() -> None:
     ]
     assert not committed, f"real Secrets must not be committed: {committed}"
 
-    docs = [
-        d
-        for d in yaml.safe_load_all((K8S_BASE / "secret.example.yaml").read_text())
-        if isinstance(d, dict)
-    ]
+    example = K8S_BASE / "secret.example.yaml"
+    assert example.is_file(), (
+        "add deploy/k8s/base/secret.example.yaml: Secrets with placeholder values, not listed in kustomization"
+    )
+    docs = [d for d in yaml.safe_load_all(example.read_text()) if isinstance(d, dict)]
     names = {d["metadata"]["name"]: d for d in docs if d.get("kind") == "Secret"}
     assert {"auth-secrets", "core-secrets"} <= set(names), (
         "secret.example.yaml must show auth-secrets and core-secrets"
