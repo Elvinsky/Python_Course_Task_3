@@ -9,4 +9,4 @@
 #   - no secrets baked in (no ENV/ARG with passwords, keys or tokens)
 #   - start with: uvicorn app.main:app --host 0.0.0.0 --port 8000
 #
-# Hint: see the Dockerfile snippet in the Python Kick-Start app (Task 3) for a starting point.
+# Hint: uv's Docker guide shows the multi-stage pattern: https://docs.astral.sh/uv/guides/integration/docker/
