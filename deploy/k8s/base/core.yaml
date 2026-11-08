@@ -1,0 +1,57 @@
+# Worked example (AC 9): Deployment + Service for Core. Mirror it for Auth in auth.yaml.
+# Image: build it as kickstart/core:0.1.0 and import it with `k3d image import` (scripts/k3d-up.sh).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: core
+  namespace: kickstart
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: core
+  template:
+    metadata:
+      labels:
+        app: core
+    spec:
+      containers:
+        - name: core
+          image: kickstart/core:0.1.0
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: core-config
+            - secretRef:
+                name: core-secrets
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8000
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: core
+  namespace: kickstart
+spec:
+  type: ClusterIP
+  selector:
+    app: core
+  ports:
+    - port: 80
+      targetPort: 8000

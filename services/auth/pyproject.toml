@@ -1,0 +1,62 @@
+[project]
+name = "kickstart-auth"
+version = "0.1.0"
+description = "Auth microservice: registration, Argon2 password hashing, Redis OTP verification and JWT issuing"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "python-multipart",
+    "sqlalchemy[asyncio]",
+    "asyncpg",
+    "alembic",
+    "pydantic-settings",
+    "email-validator",
+    "pyjwt",
+    "argon2-cffi",
+    "redis",
+    "structlog",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "httpx",
+    "aiosqlite",
+    "fakeredis",
+    "ruff",
+    "mypy",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["alembic/versions"]
+
+[tool.ruff.lint]
+# pycodestyle, pyflakes, isort, bugbear, pyupgrade, pep8-naming, bandit, async checks
+select = ["E", "F", "I", "B", "UP", "N", "S", "ASYNC"]
+ignore = ["E501"]  # line length is the formatter's job
+
+[tool.ruff.lint.isort]
+# the local alembic/ directory must not be mistaken for first-party code
+known-third-party = ["alembic"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "S105", "S106"]  # plain assert, fixed test credentials
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unused_ignores = true
+exclude = ["alembic/versions"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"

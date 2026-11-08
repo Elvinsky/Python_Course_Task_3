@@ -1,0 +1,4 @@
+# TODO (AC 10): two Jobs that run the schema migrations BEFORE the Deployments roll out:
+#   - `auth-migrate`: image kickstart/auth:0.1.0, command ["alembic", "upgrade", "head"], same envFrom as the Deployment
+#   - `core-migrate`: image kickstart/core:0.1.0, command ["alembic", "upgrade", "head"], same envFrom as the Deployment
+# Both in namespace `kickstart`, restartPolicy: OnFailure (or Never) and a small backoffLimit.

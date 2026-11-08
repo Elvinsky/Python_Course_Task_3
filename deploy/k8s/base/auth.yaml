@@ -1,0 +1,6 @@
+# TODO (AC 9): Deployment + ClusterIP Service for the Auth service, mirroring core.yaml:
+#   - replicas: 2, image kickstart/auth:0.1.0 (a pinned tag, never `latest`)
+#   - envFrom: ConfigMap `auth-config` and Secret `auth-secrets`
+#   - readinessProbe /ready and livenessProbe /health on port 8000
+#   - resources.requests for cpu and memory
+#   - Service `auth` (type ClusterIP), port 80 -> targetPort 8000, selector app: auth
